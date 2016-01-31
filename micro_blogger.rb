@@ -1,14 +1,28 @@
+###########################################################################################################################################################
+#
+# Micro_blogger. Program that interacts with twitter.com. Allowing tweets to be sent, direct messages to be sent and also get the KLOUT score for all
+# your friends.
+#
+##########################################################################################################################################################
+
 require 'jumpstart_auth'
 require 'bitly'
-Bitly.use_api_version_3
+require 'klout'
+
+
 class MicroBlogger
   attr_reader :client
   
   def initialize
     puts "Initializing MicroBlogger"
     @client = JumpstartAuth.twitter
+    Bitly.use_api_version_3
+    Klout.api_key = 'xu9ztgnacmjx3bu82warbr3h'
   end
   
+  #
+  # Send out a tweet
+  #
   def tweet(message)
     if message.length <= 140
       @client.update(message)
@@ -16,6 +30,10 @@ class MicroBlogger
       puts "Message entered is too long to tweet, please try again"
     end  
   end
+  
+  #
+  # Send a direct message to a user following you
+  #
   
   def dm(target, message)
     puts "Trying to send #{target} this direct message:"
@@ -29,7 +47,10 @@ class MicroBlogger
     end
   end
   
-  def followers_list
+  #
+  # Get list of the screen names of everyone following you
+  #
+  def followers_list()
     screen_names = Array.new
     @client.followers.each do |follower|
       screen_names << @client.user(follower).screen_name
@@ -37,12 +58,19 @@ class MicroBlogger
     return screen_names
   end
   
+  #
+  # Send a tweet out to all people following you
+  $
   def spam_my_followers(message)
-    followers = followers_list
+    followers = followers_list()
     followers.each {|follower| dm(follower,message)}
   end
   
+  #
+  # Get the last tweet from all of your friends.
+  #
   def everyones_last_tweet
+    # get list of all your friends sorted alphabetically
     friends = @client.friends.collect { |friend| @client.user(friend) }.sort_by {|friend| friend.screen_name.downcase}
     friends.each do |friend|
      # puts friend.screen_name
@@ -53,10 +81,27 @@ class MicroBlogger
     end
   end
   
+  #
+  # Use Bitly to generate a shortened URL
+  #
   def shorten(original_url)
     bitly = Bitly.new('hungryacademy', 'R_430e9f62250186d2612cca76eee2dbc6')
     return bitly.shorten(original_url).short_url
     #puts "Shortening this URL: #{original_url}"
+  end
+  
+  #
+  # Get all friends KLOUT score
+  #
+  def klout_score()
+     friends = @client.friends.collect { |friend| @client.user(friend) }.sort_by {|friend| friend.screen_name.downcase}
+     puts "KLOUT Scores"
+     friends.each do |friend|
+      identity = Klout::Identity.find_by_screen_name(friend.screen_name)
+      user = Klout::User.new(identity.id)
+      puts "#{friend.screen_name}: #{user.score.score}"
+      puts ""
+     end
   end
   
   def run
@@ -76,6 +121,7 @@ class MicroBlogger
         when 'elt' then everyones_last_tweet()
         when 's' then shorten(parts[1])
         when 'turl' then tweet(parts[1..-2].join(" ") + " " + shorten(parts[-1]))
+        when 'klout' then klout_score()
         else
           puts "Sorry, I don't how to #{command}"
       end
